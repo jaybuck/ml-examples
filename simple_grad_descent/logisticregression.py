@@ -20,8 +20,25 @@ Verbosity = 0
 
 
 def read_points_file(fname, delim=','):
-    """Read x y points from a text file, returning numpy arrays containing the x,y coordinates and the target label"""
+    """
+    Read x y points from a text file, returning numpy arrays containing the x,y coordinates and the target label.
 
+    The file contains one row for each training example (m examples).
+    The first field holds the target label for the example.
+    The remaining fields hold the coordinates of the input vector. For this example,
+    these are 2D points on the x0, x1 plane.
+    We return two arrays: one for the x coordinate vectors and one for the label y values.
+    The x ndarray has one column for each training example and 2 rows.
+    The y ndarray has one column for each training example and 1 row.
+
+    :param fname: Name of file holding the input and target data for training.
+    :type fname: string
+    :param delim: Delimiter between fields in the text file
+    :type delim: one character string
+    :return x: ndarray of input vectors
+    :rtype x: ndarray of floats of shape (2, m)
+    :rtype labels: ndarray of ints of shape (1, m)
+    """
     dat1 = np.loadtxt(fname, delimiter=delim)
     m = dat1.shape[0]
     assert dat1.shape[1] >= 3
@@ -48,6 +65,15 @@ class LogisticRegressionModel:
         coef_ : linear model coefficients
         intercept_ : linear model intercept
         cost_: model cost wrt training data
+        thresh_: Threshold on activation to decide whether output y^hat is 0 or 1
+        train_accuracy_: Accuracy measured on training set
+        train_recall_: Recall measured on training set
+        train_precision_: Precision measured on training set
+        test_accuracy_: Accuracy measured on test set
+        test_recall_: Recall measured on test set
+        test_precision_: Precision measured on test set
+        train_stats_: List of tuples of key training metrics, one tuple every 100 epochs
+
     """
 
     def __init__(self, winit=[0.01, 0.01], intercept=0.0):
@@ -80,6 +106,14 @@ class LogisticRegressionModel:
         self.train_stats_ = []
 
     def write(self, filename):
+        """
+        Write model attributes to file.
+
+
+        :param filename: name of output file.
+        :type filename: string
+        :return: None
+        """
         # Put the fields we want to persist into a dictionary.
         w = self.coef_.ravel().tolist()    # flatten the weight vector for writing.
         out_dict = {}
@@ -100,6 +134,15 @@ class LogisticRegressionModel:
             json.dump(out_dict, json_file, indent=4, sort_keys=True)
 
     def write_training_stats(self, filename):
+        """
+        Write training statistics to file.
+
+        These include the epoch, cost, training accuracy, recall and precision, and the model weights.
+        Also plots the model cost on the training data as a function of epoch.
+        :param filename: Statistics filename
+        :type filename: string
+        :return: None
+        """
         train_stats_df = pd.DataFrame(data=self.train_stats_,
                                       columns=['epoch', 'cost', 'accuracy', 'recall', 'precision', 'b', 'w0', 'w1'])
         train_stats_df.to_csv(filename, index=False)
@@ -113,20 +156,39 @@ class LogisticRegressionModel:
         plt.close()
 
     def compute_decision_surface(self):
-        # Using w and b, compute the decision surface for the logistic regression model.
-        # Which is a line s.t.
-        # w0 * x + w1 * x1 + b = 0.5
+        """
+        Using the model weights and intercept b, compute the slope and y intercept
+        of the decision surface of the model, which is a line for the 2D x inputs
+        of this example code.
+        :return slope: The slope of the decision surface line
+        :rtype slope: float
+        :return intercept: The y intercept of the decision surface line
+        :rtype intercept: float
+        """
+        # Decision surface is a line s.t.
+        # w0 * x + w1 * x1 + b = 0
         # or, to compute the slope and intercept of that line:
-        # x1 = -(w0/x1)*x0 - (b + 0.5)/w1
+        # x1 = -(w0/x1)*x0 - b/w1
 
-        w = self.coef_
+        w = self.coef_.ravel()
         b = self.intercept_
 
-        slope = -(w[0, 0] / w[1, 0])
-        y_intercept = -(b / w[1, 0])
+        slope = -(w[0] / w[1])
+        y_intercept = -(b / w[1])
         return slope, y_intercept
 
     def predict_proba(self, x):
+        """
+        Compute the activation A for the model given an input vectors x.
+
+        This activation is the probability for that input x that it is
+        in the positive class. Ie, the probability that the prediction
+        for x should be 1.
+        :param x: input which is a set of m 2D column vectors stacked horizontally
+        :type x: ndarrary of floats of shape (nx, m)
+        :return A: Activation matrix, one column for each column of x
+        :rtype A: ndarray of floats of shape (nx, m)
+        """
         w = self.coef_
         b = self.intercept_
 
@@ -148,11 +210,10 @@ class LogisticRegressionModel:
 
         :param x: numpy array of floats of shape (nx, m)
             The input feature vectors to run the model on.
-        :return:
+        :return y_pred: The class prediction for each vector in x
+        :rtype y_pred: ndarray of int of shape (1, m)
         """
-
-        # ToDo: Set threshold to point s.t. FP rate == FN rate
-
+        # ToDo: Set threshold to value s.t. FP rate == FN rate
         a = self.predict_proba(x)
         y_pred = (a >= self.thresh_)
         y_pred = y_pred.astype(np.int)
@@ -163,11 +224,16 @@ class LogisticRegressionModel:
         """
         Compute most useful summary metrics: accuracy, recall and precision.
 
-        :param y_true: numpy array of ints of shape (1, m)
-            The target or label value for a data exemplar.
-        :param y_pred: numpy array of ints of shape (1, m)
-            The class label predicted by the model.
-        :return:
+        :param y_true: The target or label value for a data exemplar.
+        :type y_true: numpy array of ints of shape (1, m)
+        :param y_pred: The class label predicted by the model.
+        :type y_pred: numpy array of ints of shape (1, m)
+        :return accuracy: The accuracy of the predictions.
+        :rtype accuracy: float
+        :return recall: The recall of the predictions.
+        :rtype recall: float
+        :return precision: The precision of the predictions.
+        :rtype precision: float
         """
 
         ny = y_true.size
@@ -183,6 +249,8 @@ class LogisticRegressionModel:
 
     def fit(self, xs, ys, nepochs=10, learnrate=0.01):
         """Computes slope and intercept of best fit line for points.
+
+        Trying the numpy docstring format here.
 
         Parameters
         ----------
@@ -217,6 +285,8 @@ class LogisticRegressionModel:
         training_stats_interval = 100
         if nepochs < 100:
             training_stats_interval = 10
+        elif nepochs > 80000:
+            training_stats_interval = 1000
 
         # We'll need the number of points a lot:
         m = ys.size
@@ -253,6 +323,9 @@ class LogisticRegressionModel:
                 print('A.shape: {}'.format(A.shape))
                 print('ys.shape: {}'.format(ys.shape))
 
+            sys.stdout.flush()
+            sys.stderr.flush()
+
             # Compute cost
             # Use cross entropy loss
             J_all = -1.0 * ((ys * np.log(A)) + (1.0 - ys) * np.log(1.0 - A))
@@ -282,7 +355,8 @@ class LogisticRegressionModel:
                     accuracy, recall, precision = LogisticRegressionModel.summary_metrics(ys, y_pred)
                     w_flat = w.ravel()
                     self.train_stats_.append((epoch, J, accuracy, recall, precision, b, w_flat[0], w_flat[1]))
-                    sys.stderr.write('epoch: {}\taccuracy: {}\trecall: {}\tprecision: {}\n'.format(epoch, accuracy, recall, precision))
+                    sys.stderr.write('epoch: {}\taccuracy: {}\trecall: {}\tprecision: {}'.format(epoch, accuracy, recall, precision))
+                    sys.stderr.write('\n')
                     sys.stderr.flush()
                     # ToDo: Make sure the last few cost deltas have been low.
                     if abs(J_last - J) < 0.0001:
@@ -346,9 +420,13 @@ if __name__ == '__main__':
     ################################################################################
     # Compute best logistic regression model coefficients
 
+    sys.stderr.write('Fitting model...\n')
+    sys.stderr.flush()
+
     logregmodel = LogisticRegressionModel()
     w, b = logregmodel.fit(xs, ys, nepochs=nepochs, learnrate=learnrate)
     print("Best fit model: cost {}\tb: {}\tw: {}".format(logregmodel.cost_, b, w))
+    sys.stdout.flush()
 
     ################################################################################
     # Evaluate the model
@@ -364,7 +442,7 @@ if __name__ == '__main__':
         print(a)
 
     accuracy, recall, precision = LogisticRegressionModel.summary_metrics(ys, y_pred)
-    print('Train accuracy: {}\trecall: {}\tprecision: {}\n'.format(accuracy, recall, precision))
+    print('\nTrain accuracy: {}\trecall: {}\tprecision: {}\n'.format(accuracy, recall, precision))
 
     # Plot Confusion matrix
     confusion_mat = sklearn.metrics.confusion_matrix(ys.ravel(), y_pred.ravel())
@@ -411,7 +489,7 @@ if __name__ == '__main__':
     plt.axis('equal')
     plt.scatter(x0_neg, x1_neg, s=4, c='r', marker='.', alpha=0.5, label='negatives')
     plt.scatter(x0_pos, x1_pos, s=4, c='b', marker='.', alpha=0.5, label='positives')
-    plt.plot(x_fit, y_fit, 'm-', label='best fit line')
+    plt.plot(x_fit, y_fit, linestyle='-', color='deeppink', label='model decision surface')
     plt.legend()
     plt.savefig('_train' + plot_filename)
     plt.close()
@@ -425,7 +503,7 @@ if __name__ == '__main__':
         # Evaluate the model
         y_pred = logregmodel.predict(x_test)
         accuracy, recall, precision = LogisticRegressionModel.summary_metrics(y_test, y_pred)
-        print('Test accuracy: {}\trecall: {}\tprecision: {}\n'.format(accuracy, recall, precision))
+        print('\nTest accuracy: {}\trecall: {}\tprecision: {}\n'.format(accuracy, recall, precision))
         logregmodel.test_accuracy_ = accuracy
         logregmodel.test_recall_ = recall
         logregmodel.test_precision_ = precision
@@ -459,7 +537,7 @@ if __name__ == '__main__':
         plt.axis('equal')
         plt.scatter(x0_neg, x1_neg, s=4, c='r', marker='.', alpha=0.5, label='negatives')
         plt.scatter(x0_pos, x1_pos, s=4, c='b', marker='.', alpha=0.5, label='positives')
-        plt.plot(x_fit, y_fit, 'm-', label='best fit line')
+        plt.plot(x_fit, y_fit, linestyle='-', color='deeppink', label='model decision surface')
         plt.legend()
         plt.savefig('_test' + plot_filename)
         plt.close()
