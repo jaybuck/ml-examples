@@ -10,7 +10,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def read_points_file(fname, delim='\t'):
-    """Read x y points from a text file, returning numpy arrays containing the x coordinates and the y coordinates"""
+    """Read x y points from a text file, returning numpy arrays containing the x coordinates and the y coordinates.
+
+    Each line in the text file holds one point. m points total.
+    :param fname: Name of file holding x, y coordinates
+    :type fname: string
+    :param delim: Deliminter between fields in the text file
+    :type delim: string (one character)
+    :return xs: Array holding x coordinate of points
+    :type xs: numpy array of floats of shape (1, m)
+    :return ys: Array holding y coordinate of points
+    :type ys: numpy array of floats of shape (1, m)
+    """
     dat1 = np.loadtxt(fname, delimiter=delim)
     xs = dat1[:, 0]
     ys = dat1[:, 1]
