@@ -15,8 +15,10 @@ import numpy as np
 
 a = tf.constant(15, name="a")
 b = tf.constant(5, name="b")
+
 prod = tf.multiply(a, b, name="mult")
 sum = tf.add(a, b, name="add")
+
 res = tf.divide(prod, sum, name="divide")
 
 # Initialize all variables. Do this first in upcoming session.
@@ -29,3 +31,4 @@ sess.run(init)
 # Use the run function to run the graph and get values from the run.
 outval, a_out, b_out = sess.run([res, a, b])
 print('a: {}\tb: {}\tresult: {}'.format(a_out, b_out, outval))
+
