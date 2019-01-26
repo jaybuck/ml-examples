@@ -148,10 +148,17 @@ class LogisticRegressionModel:
         train_stats_df.to_csv(filename, index=False)
 
         # Plot cost as a function of training epoch.
+        print('Training statistics head:')
+        print(train_stats_df.head(10))
+        max_df = train_stats_df.max(axis=0)
+        max_cost = max_df['cost']
+        max_cost = max_cost if max_cost > 0.1 else 0.1
+        print('max_cost: {}'.format(max_cost))
         plt.figure()
         sns.set(style='darkgrid')
         ax = sns.lineplot(x='epoch', y='cost', data=train_stats_df)
         ax.set(xlabel='Epoch', ylabel='Cost', title='Regression Model Training Cost')
+        ax.set_ylim(0.0, 1.1 * max_cost)
         plt.savefig('_logisticregressionmodel_train_cost.png')
         plt.close()
 
@@ -303,6 +310,9 @@ class LogisticRegressionModel:
 
         J = 999999999.0
         J_last = J
+        J_delta_avg = J
+        lowpass_alpha = 0.1
+        early_stopping_cost_delta_threshold = 0.0001
 
         t0 = time.perf_counter()
 
@@ -351,16 +361,19 @@ class LogisticRegressionModel:
                 # sys.stderr.write('db: {}\n'.format(db))
                 sys.stdout.flush()
                 sys.stderr.write('\nepoch: {}\tcost: {}\tb: {}\tw: {}\n'.format(epoch, J, b, w))
-                if epoch > 0:
+                if epoch == 0:
+                    J_delta_avg = J
+                else:
                     accuracy, recall, precision = LogisticRegressionModel.summary_metrics(ys, y_pred)
                     w_flat = w.ravel()
                     self.train_stats_.append((epoch, J, accuracy, recall, precision, b, w_flat[0], w_flat[1]))
                     sys.stderr.write('epoch: {}\taccuracy: {}\trecall: {}\tprecision: {}'.format(epoch, accuracy, recall, precision))
                     sys.stderr.write('\n')
                     sys.stderr.flush()
-                    # ToDo: Make sure the last few cost deltas have been low.
-                    if abs(J_last - J) < 0.0001:
-                        sys.stderr.write('Early Stopping criteria met: Cost delta now low enough')
+                    # Use low-pass filter on cost to approximate average recent cost:
+                    J_delta_avg = (1.0 - lowpass_alpha) * J_delta_avg + lowpass_alpha * abs(J_last - J)
+                    if J_delta_avg < early_stopping_cost_delta_threshold:
+                        sys.stderr.write('Early Stopping criteria met: Cost delta now low enough\n')
                         break
                     else:
                         J_last = J
@@ -393,7 +406,6 @@ if __name__ == '__main__':
 
     # Required command-line args
     parser.add_argument('trainpointsfile', help='File containing comma-separated list of x y points for model training')
-    parser.add_argument('testpointsfile', help='File containing comma-separated list of x y points for model testing')
 
     # Optional command-line args
     parser.add_argument('-e', '--epochs', type=int, default=10,
