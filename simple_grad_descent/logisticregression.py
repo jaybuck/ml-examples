@@ -314,9 +314,12 @@ class LogisticRegressionModel:
         lowpass_alpha = 0.1
         early_stopping_cost_delta_threshold = 0.0001
 
+        total_train_time = 0.0
         t0 = time.perf_counter()
 
         for epoch in range(nepochs):
+            t0 = time.perf_counter()
+
             # Compute cost J and gradients at each epoch
 
             # Compute z = wx + b
@@ -356,6 +359,9 @@ class LogisticRegressionModel:
             w -= learnrate * dw
             b -= learnrate * db
 
+            t1 = time.perf_counter()
+            total_train_time += time.perf_counter() - t0
+
             if (epoch % training_stats_interval) == 0:
                 # sys.stderr.write('\ndw: {}\n'.format(dw))
                 # sys.stderr.write('db: {}\n'.format(db))
@@ -378,10 +384,10 @@ class LogisticRegressionModel:
                     else:
                         J_last = J
 
-        t1 = time.perf_counter()
-        td = t1 - t0
+        avg_train_time = total_train_time / epoch
         tnow = datetime.datetime.now()
-        sys.stderr.write('Train time: {0:12.6f} sec\n'.format(td))
+        sys.stderr.write('Train time: {0:.6f} sec\n'.format(total_train_time))
+        sys.stderr.write('Average Train time per epoch: {0:.6f} sec\n'.format(avg_train_time))
 
         # Wrapup
 
@@ -484,6 +490,8 @@ if __name__ == '__main__':
 
     slope = -(w[0, 0] / w[1, 0])
     y_intercept = -(b / w[1, 0])
+    print('Decision line slope: {:.2f}\tintercept: {:.2f}'.format(slope, y_intercept))
+
     x_fit = np.array([xmin, xmax])
     y_fit = slope * x_fit + y_intercept
 
