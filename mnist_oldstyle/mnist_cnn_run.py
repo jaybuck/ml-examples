@@ -10,6 +10,10 @@ import os.path
 import time
 import argparse
 
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+
 import tensorflow as tf
 
 
@@ -30,6 +34,21 @@ def conv2d(x, W):
 def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                           strides=[1, 2, 2, 1], padding='SAME')
+
+def plotNNFilter(units):
+    filters = units.shape[3]
+    plt.figure(1, figsize=(20, 20))
+    n_columns = 6
+    n_rows = math.ceil(filters / n_columns) + 1
+    for i in range(filters):
+        plt.subplot(n_rows, n_columns, i+1)
+        plt.title('Filter ' + str(i))
+        plt.imshow(units[0,:,:,i], interpolation="nearest", cmap="gray")
+
+
+def getActivations(tfsess, layer, stimuli):
+    units = tfsess.run(layer, feed_dict={x: np.reshape(stimuli, [1, 784], order='F'), keep_prob: 1.0})
+    plotNNFilter(units)
 
 
 if __name__ == '__main__':
@@ -53,7 +72,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-d', '--datadir', default='data',
                         help='Directory holding MNIST data wrt your homedir')
-    parser.add_argument('-s', '--summariesdir', default='mnist_cnn_logs',
+    parser.add_argument('-s', '--summariesdir', default='mnist_cnn_run_logs',
                         help='TensorBoard Summaries directory')
     parser.add_argument('-w', '--modeldir', default='models',
                         help='TensorBoard Summaries directory')
@@ -175,38 +194,22 @@ if __name__ == '__main__':
 
     sess.run(init_op)
 
-    # Variables for timing stats:
-    n_batches = 0
-    batch_time_sum = 0.0
+    # Restore saved model.
+    saver.restore(sess, model_path)
+    print('Model restored from: {}'.format(model_path))
+    # print('Computing test accuracy...')
+    # print("\nfinal testaccuracy {:0.4f}".format(sess.run(accuracy_op,
+    #                                                      feed_dict={x: mnist.test.images, y_: mnist.test.labels,
+    #                                                                 keep_prob: 1.0})))
 
-    for train_step in range(max_train_steps):
-        # Do the training
-        batch = mnist.train.next_batch(batch_size)
-        t0 = time.time()
+    # Test on one image
+    indx = 3
+    print("Hidden layer activations for test image {}".format(indx))
+    testimg = mnist.test.images[indx]
+    plt.imshow(np.reshape(testimg, [28, 28]), interpolation="nearest", cmap="gray")
+    plt.show()
 
-        # This is the line where the training happens:
-        summary, train_accuracy, _ = sess.run([merged, accuracy_op, train_op],
-                                              feed_dict={x: batch[0], y_: batch[1], keep_prob: dropoutrate})
+    getActivations(sess, h_conv2, testimg)
 
-        time_delta = time.time() - t0
-        train_writer.add_summary(summary, train_step)
+    plt.show()
 
-        n_batches += 1
-        batch_time_sum += time_delta
-
-        # Log test accuracy.
-        if train_step % training_stats_interval == 0:
-            summary, test_accuracy, cost = sess.run([merged, accuracy_op, cost_op],
-                                                    feed_dict={x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0})
-            test_writer.add_summary(summary, train_step)
-            print("train_step {}\tloss {:.6f}\ttrainaccuracy {:.4f}\ttestaccuracy {:.4f}".format(train_step, cost, train_accuracy, test_accuracy))
-
-    avg_train_time = batch_time_sum / (n_batches * batch_size)
-    print('\nAverage train time per image: {}'.format(avg_train_time))
-
-    # Save the trained model.
-    save_path = saver.save(sess, model_path)
-    print('Model saved in: {}'.format(save_path))
-
-    print("\nfinal testaccuracy {:0.4f}".format(sess.run(accuracy_op,
-                                              feed_dict={x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0})))
