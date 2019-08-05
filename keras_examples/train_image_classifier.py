@@ -10,13 +10,12 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+import cv2
+import matplotlib.pyplot as plt
+
 import keras
-from keras import metrics
 from keras import backend as K
 
-import cv2
-
-import matplotlib.pyplot as plt
 
 def read_labeled_images(imagelist_filename, datadir=None):
     print('read_labeled_images')
@@ -46,6 +45,11 @@ def read_labeled_images(imagelist_filename, datadir=None):
 
     images = np.array(image_list)
     print('images shape:', images.shape)
+
+    # Write the image paths.
+    path_pd = pd.DataFrame.from_dict({'label': labels, 'path': path_list})
+    path_pd.to_csv('_imagepaths.csv', index=False)
+
     return images, labels, path_list
 
 
@@ -86,7 +90,6 @@ if __name__ == '__main__':
                         help='Learning rate')
     parser.add_argument('-v', '--debugLevel', type=int, default=0,
                         help='Level of debugging output (verbosity).')
-
     parser.add_argument('-d', '--datadir', default='data',
                         help='Directory holding MNIST data wrt your homedir')
     parser.add_argument('-s', '--summariesdir', default='image_cnn_logs',
@@ -102,7 +105,7 @@ if __name__ == '__main__':
     learnrate = args.learnrate
     dropoutrate = args.dropout
 
-    n_nexttolast = 256
+    n_nexttolast = 64
 
     homedir = os.path.expanduser('~')
     data_dir = os.path.join(homedir, args.datadir)
@@ -115,14 +118,10 @@ if __name__ == '__main__':
     # print('img shape: {}\tdtype: {}'.format(img.shape, img.dtype))
 
     # Read train and test images and labels:
-    x_all, y_all, image_paths = read_labeled_images(train_filename, datadir=data_dir)
+    images, y_all, image_paths = read_labeled_images(train_filename, datadir=data_dir)
+    x_all = images.astype('float32') / 255
     x_train, x_test, y_train, y_test = train_test_split(x_all, y_all, test_size=0.1)
 
-    # Write the image paths.
-    with open('_imagepaths.txt', 'w') as pathfile:
-        for pathname in image_paths:
-            pathfile.write(pathname + '\n')
-    
     x_shape = x_train.shape
     n_train = x_shape[0]
     nrows = x_shape[1]
@@ -140,8 +139,6 @@ if __name__ == '__main__':
     # Convert to the correct type for input to CNN:
     x_train = x_train.astype('float32')
     x_test = x_test.astype('float32')
-    x_train /= 255
-    x_test /= 255
     print('\nAfter reshaping:')
     print('x_train shape', x_train.shape)
     print('# training samples:', n_train)
@@ -175,15 +172,21 @@ if __name__ == '__main__':
     model.add(keras.layers.MaxPooling2D(pool_size=(2, 2)))
 
     # Third conv layer
-    model.add(keras.layers.Conv2D(128, kernel_size=(3, 3),
-                                  activation='relu'))
-    model.add(keras.layers.MaxPooling2D(pool_size=(2, 2)))
+    # model.add(keras.layers.Conv2D(128, kernel_size=(3, 3),
+    #                               activation='relu'))
+    # model.add(keras.layers.MaxPooling2D(pool_size=(2, 2)))
 
     # Fully connected layers
     model.add(keras.layers.Flatten())
+    model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.Dropout(dropoutrate))
 
-    model.add(keras.layers.Dense(n_nexttolast, activation='relu'))
+    model.add(keras.layers.Dense(1024, activation='sigmoid'))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Dropout(dropoutrate))
+
+    model.add(keras.layers.Dense(n_nexttolast, activation='sigmoid'))
+    model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.Dropout(dropoutrate))
 
     # Final layer
@@ -225,6 +228,7 @@ if __name__ == '__main__':
     print('score:', score)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
+
     plt.plot(history_callback.indices, history_callback.acc, label='train')
     plt.plot(history_callback.indices, history_callback.val_acc, label='test')
     plt.legend()
@@ -236,10 +240,9 @@ if __name__ == '__main__':
     plt.close()
 
     # Get penultimate fully-connected layer
-    nexttolast_layer = model.get_layer('dense_1')
+    nexttolast_layer = model.get_layer('dense_2')
     get_nexttolast_layer_output = K.function([model.layers[0].input, K.learning_phase()],
                                              [nexttolast_layer.output])
-    x1 = x_test[0:2].reshape(-1, nrows, ncols, n_channels)
     nexttolast_output = get_nexttolast_layer_output([x_all, 0])[0]
     print('nexttolast_output shape ', nexttolast_output.shape)
     np.save('_nexttolast_a.npy', nexttolast_output)
