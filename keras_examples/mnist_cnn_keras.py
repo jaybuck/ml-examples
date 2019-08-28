@@ -67,7 +67,6 @@ if __name__ == '__main__':
     print('x_train shape: {}\tdtype {}'.format(x_train.shape, x_train.dtype))
     print('y_train shape: {}\tdtype {}'.format(y_train.shape, y_train.dtype))
 
-
     # Reshape the image data into 4D tensor: (sample_number, x_img_size, y_img_size, num_channels)
     # MNIST data is grayscale so only one channel.
     n_train = x_train.shape[0]
@@ -96,7 +95,7 @@ if __name__ == '__main__':
     y_test = keras.utils.to_categorical(y_test, num_classes)
     print('y_test one-hot:\n', y_test[0:10])
 
-    sys.exit(0)
+    # sys.exit(0)
 
     # Define neural network model:
     model = keras.models.Sequential()
@@ -129,21 +128,30 @@ if __name__ == '__main__':
     history_callback = AccuracyHistory()
 
     # Train the model:
-    model.fit(x_train, y_train,
-              batch_size=batch_size,
-              epochs=nepochs,
-              verbose=1,
-              validation_data=(x_test, y_test),
-              callbacks=[history_callback])
+    history = model.fit(x_train, y_train,
+                        batch_size=batch_size,
+                        epochs=nepochs,
+                        verbose=1,
+                        validation_data=(x_test, y_test),
+                        callbacks=[history_callback])
 
     # Score the model:
     score = model.evaluate(x_test, y_test, verbose=0)
-    print('score:', score)
+    print('Test score:', score)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
-    plt.plot(range(1, 11), history_callback.acc)
+
+    # history keys:  dict_keys(['val_loss', 'val_acc', 'loss', 'acc'])
+
+    plt.figure()
+    # plt.plot(range(1, nepochs + 1), history_callback.acc)
+    plt.plot(history.history['acc'], label='train')
+    plt.plot(history.history['val_acc'], label='test')
+    plt.grid()
+    plt.legend()
     plt.xlabel('epoch')
     plt.ylabel('Accuracy')
+    plt.title('Model train and test accuracy')
     plt.savefig('_test_accuracy.png')
     plt.close()
 
