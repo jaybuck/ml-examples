@@ -146,15 +146,29 @@ if __name__ == '__main__':
     model = keras.models.Sequential()
 
     # First conv layer
+    # model.add(keras.layers.Conv2D(32, kernel_size=(5, 5),
+    #                               strides=(1, 1),
+    #                               activation='relu',
+    #                               input_shape=input_shape))
     model.add(keras.layers.Conv2D(32, kernel_size=(5, 5),
                                   strides=(1, 1),
-                                  activation='relu',
-                                  input_shape=input_shape))
+                                  input_shape=input_shape,
+                                  kernel_initializer='he_normal',
+                                  use_bias=False))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Activation('relu'))
+
+    # model.add(keras.layers.Activation('relu'))
+    # model.add(keras.layers.BatchNormalization())
+
     model.add(keras.layers.MaxPooling2D(pool_size=(2, 2)))
 
     # Second conv layer
     model.add(keras.layers.Conv2D(64, kernel_size=(3, 3),
-                                  activation='relu'))
+                                  kernel_initializer='he_normal',
+                                  use_bias=False))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Activation('relu'))
     model.add(keras.layers.MaxPooling2D(pool_size=(2, 2)))
 
     # Third conv layer
@@ -166,10 +180,12 @@ if __name__ == '__main__':
     model.add(keras.layers.Flatten())
     model.add(keras.layers.Dropout(dropoutrate))
 
-    model.add(keras.layers.Dense(1024, activation='relu'))
-    model.add(keras.layers.Dropout(dropoutrate))
+    model.add(keras.layers.Dense(1024, use_bias=False))
+    model.add(keras.layers.BatchNormalization())
+    model.add(keras.layers.Activation('relu'))
 
     # Final layer
+    model.add(keras.layers.Dropout(dropoutrate))
     model.add(keras.layers.Dense(num_classes, activation='softmax'))
 
     # Compile the model:
@@ -189,17 +205,19 @@ if __name__ == '__main__':
               callbacks=[history_callback])
 
     # Score the model:
+    print('Experiments using batch norm: Dense -> BatchNorm -> reLU\n')
     score = model.evaluate(x_test, y_test, verbose=1)
     print('score:', score)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
     plt.plot(history_callback.indices, history_callback.acc, label='train')
     plt.plot(history_callback.indices, history_callback.val_acc, label='test')
+    plt.grid()
     plt.legend()
     plt.xlabel('epoch')
     plt.ylabel('Accuracy')
     plt.title('Model accuracy')
-    plt.savefig('_traintest_accuracy.png')
+    plt.savefig('_jaybuck_traintest_accuracy.png')
     plt.close()
 
     print('Done')
