@@ -44,7 +44,7 @@ def read_points_file(fname, delim=','):
     assert dat1.shape[1] >= 3
 
     labels = dat1[:, 0].reshape(1, m)
-    labels = labels.astype(np.int)
+    labels = labels.astype(int)
     xrows = dat1[:, 1:]
     xs = xrows.T
 
@@ -223,7 +223,7 @@ class LogisticRegressionModel:
         # ToDo: Set threshold to value s.t. FP rate == FN rate
         a = self.predict_proba(x)
         y_pred = (a >= self.thresh_)
-        y_pred = y_pred.astype(np.int)
+        y_pred = y_pred.astype(int)
         return y_pred
 
     @staticmethod
@@ -328,7 +328,7 @@ class LogisticRegressionModel:
             # Compute activation (or yhat)
             A = 1.0 / (1.0 + np.exp(-Z))
             y_pred = (A >= self.thresh_)
-            y_pred = y_pred.astype(np.int)
+            y_pred = y_pred.astype(int)
 
             if Verbosity > 1:
                 print('A:')

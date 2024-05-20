@@ -182,6 +182,7 @@ if __name__ == '__main__':
     plt.ylabel('y')
     plt.title('Gradient Descent Linear Regression Example (vectorized)')
     plt.axis('equal')
+    plt.grid()
     plt.plot(xs[0], ys[0], 'bo', label='point cloud')
     plt.plot(x_fit, y_fit, 'r-', label='best fit line')
     plt.legend()
