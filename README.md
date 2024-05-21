@@ -1,6 +1,11 @@
 # ml-examples
 Examples of code to implement simple machine learning algorithms.
 
+ToDo:
+* Setup a new venv for these
+* Update these, esp variable naming in regression code
+* Add PyTorch examples?
+
 The code in this repo is intended as part of a series of introductory tutorials on machine learning. The key topic areas are:
 * A brief introductory Python tutorial.
 * Understanding gradient descent. These examples explicitly code 
